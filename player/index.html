@@ -1,0 +1,125 @@
+<!--
+Copyright 2022 Robins Software
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en_CA">
+
+<head>
+    <title>slashmusic</title>
+    <meta charset="utf-8">
+
+    <style>
+        html,
+        body {
+            margin: 0px;
+            padding: 0px;
+        }
+
+        #content {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            background-color: #333;
+            color: #DDD;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            font-size: 32px;
+        }
+
+        iframe {
+            position: fixed;
+            z-index: 2;
+            height: 100%;
+            width: 100%;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="content">
+        <iframe id="video" src="" title="Music Player"></iframe>
+        <p id="status">Attempting connection...</p>
+    </div>
+</body>
+
+<script>
+    // api
+    function getQueryVariable(variable) {
+        var query = window.location.search.substring(1);
+        var vars = query.split('&');
+        for (var i = 0; i < vars.length; i++) {
+            var pair = vars[i].split('=');
+            if (decodeURIComponent(pair[0]) == variable) {
+                return decodeURIComponent(pair[1]);
+            }
+        }
+    }
+
+    function play(id, time) {
+        document.getElementById("video").src = "https://www.youtube-nocookie.com/embed/" + id + "?playlist=" + id + "&autoplay=1&iv_load_policy=3&loop=0&modestbranding=1&start=" + time;
+    }
+
+    function stop() {
+        document.getElementById("video").src = "";
+    }
+
+    // script
+    var socket = new WebSocket("ws://" + getQueryVariable("address"));
+    var connected = false;
+
+    socket.onopen = function (event) {
+        socket.send(getQueryVariable("id"));
+    }
+
+    socket.onmessage = function (event) {
+        var args = event.data.split(";");
+
+        switch (args[0]) {
+            case "connected":
+                connected = true;
+                document.getElementById("status").innerHTML = "No videos playing.";
+                break;
+            case "invalid":
+                document.getElementById("status").innerHTML = "Invalid session.";
+                break;
+            case "play":
+                play(args[1], args[2])
+                break;
+            case "stop":
+                stop();
+                break;
+            case "disconnect":
+                socket.close(1000, "");
+                break;
+        }
+    };
+
+    socket.onclose = function (event) {
+        stop();
+
+        if (!connected) {
+            document.getElementById("status").innerHTML = "Unable to connect.";
+        } else {
+            document.getElementById("status").innerHTML = "Disconnected from server.";
+        }
+    }
+
+</script>
+
+</html>
